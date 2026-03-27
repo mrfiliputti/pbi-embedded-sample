@@ -1,0 +1,15 @@
+# Power BI Embedded Flask Application Dependencies
+# Python 3.8+ required
+
+# Web Framework
+Flask>=2.3.0
+
+# Microsoft Authentication Library for Python
+# Used for Service Principal authentication (client credentials flow)
+msal>=1.24.0
+
+# HTTP library for REST API calls
+requests>=2.31.0
+
+# Environment variable management
+python-dotenv>=1.0.0

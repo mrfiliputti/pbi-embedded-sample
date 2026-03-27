@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power BI Embedded Demo</title>
+    
+    <!-- Power BI JavaScript Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.22.3/dist/powerbi.min.js"></script>
+    
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0078d4 0%, #004578 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        
+        /* Main container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Filter section */
+        .filter-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-section label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        /* Dropdown select */
+        #filterSelect {
+            padding: 10px 15px;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            min-width: 200px;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        #filterSelect:hover {
+            border-color: #0078d4;
+        }
+        
+        #filterSelect:focus {
+            outline: none;
+            border-color: #0078d4;
+            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.2);
+        }
+        
+        #filterSelect:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+        
+        /* Status indicator */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .status-indicator.loading {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-indicator.ready {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-indicator.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-indicator.loading .status-dot {
+            background-color: #ffc107;
+            animation: pulse 1s infinite;
+        }
+        
+        .status-indicator.ready .status-dot {
+            background-color: #28a745;
+        }
+        
+        .status-indicator.error .status-dot {
+            background-color: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Report container */
+        #reportContainer {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            height: calc(100vh - 220px);
+            min-height: 500px;
+            overflow: hidden;
+        }
+        
+        /* Loading state for report container */
+        #reportContainer.loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #f5f5f5 25%, transparent 25%),
+                        linear-gradient(-45deg, #f5f5f5 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #f5f5f5 75%),
+                        linear-gradient(-45deg, transparent 75%, #f5f5f5 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        
+        .loading-message {
+            background: white;
+            padding: 30px 50px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .loading-message .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0078d4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Error message */
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+        
+        .error-message h3 {
+            margin-bottom: 10px;
+        }
+        
+        .error-message code {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        /* Footer info */
+        .footer-info {
+            text-align: center;
+            padding: 15px;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .filter-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .status-indicator {
+                margin-left: 0;
+                justify-content: center;
+            }
+            
+            #filterSelect {
+                width: 100%;
+            }
+            
+            #reportContainer {
+                height: calc(100vh - 300px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>Power BI Embedded Demo</h1>
+        <p>App Owns Data / Embed for Your Customers</p>
+    </header>
+    
+    <!-- Main content -->
+    <main class="container">
+        <!-- Filter dropdown section -->
+        <section class="filter-section">
+            <label for="filterSelect">Filter by:</label>
+            <select id="filterSelect" disabled>
+                <option value="">Loading filter values...</option>
+            </select>
+            
+            <div id="statusIndicator" class="status-indicator loading">
+                <span class="status-dot"></span>
+                <span id="statusText">Initializing...</span>
+            </div>
+        </section>
+        
+        <!-- Power BI Report container -->
+        <div id="reportContainer" class="loading">
+            <div class="loading-message">
+                <div class="spinner"></div>
+                <p>Loading Power BI Report...</p>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="footer-info">
+        <p>Select a value from the dropdown to filter the report in real-time.</p>
+    </footer>
+    
+    <!-- Application JavaScript -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
