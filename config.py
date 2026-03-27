@@ -27,6 +27,15 @@ class Config:
     
     # Optional: Dataset ID (if needed for row-level security or specific scenarios)
     DATASET_ID: str = os.getenv("DATASET_ID", "")
+
+    # Filter configuration used by /api/filter-values.
+    FILTER_TABLE_NAME: str = os.getenv("FILTER_TABLE_NAME", "Sales")
+    FILTER_TABLE_CANDIDATES: list = [
+        value.strip()
+        for value in os.getenv("FILTER_TABLE_CANDIDATES", "Sales,SalesForecast").split(",")
+        if value.strip()
+    ]
+    FILTER_COLUMN_NAME: str = os.getenv("FILTER_COLUMN_NAME", "Product")
     
     # Power BI API scope for authentication
     POWER_BI_SCOPE: str = "https://analysis.windows.net/powerbi/api/.default"

@@ -17,8 +17,8 @@ let report = null;
 
 /** @type {Object} - Filter configuration from the backend */
 let filterConfig = {
-    tableName: "<TABLE_NAME>",
-    columnName: "<COLUMN_NAME>"
+    tableName: "Sales",
+    columnName: "Product"
 };
 
 /** @type {boolean} - Flag to track if the report is fully loaded */
@@ -75,16 +75,15 @@ async function fetchEmbedConfig() {
  */
 async function fetchFilterValues() {
     const response = await fetch("/api/filter-values");
+    const data = await response.json().catch(() => ({}));
     
     if (!response.ok) {
-        console.warn("Failed to fetch filter values, using defaults");
-        return {
-            values: ["All", "Account", "Customer", "Region", "Product"],
-            filterConfig: filterConfig
-        };
+        const error = new Error(data.details || data.error || `HTTP ${response.status}`);
+        error.data = data;
+        throw error;
     }
     
-    return response.json();
+    return data;
 }
 
 // =============================================================================
@@ -122,17 +121,25 @@ function embedReport(embedConfig) {
     reportContainer.classList.remove("loading");
     reportContainer.innerHTML = "";
     
-    // Get the Power BI embed instance
-    const powerbiClient = window.powerbi;
+    // Resolve Power BI service and models from global objects exposed by the CDN bundle.
+    const powerbiService = window.powerbi;
+    const powerbiModels = (window["powerbi-client"] && window["powerbi-client"].models) ||
+        (powerbiService && powerbiService.models);
+
+    if (!powerbiService || !powerbiModels) {
+        throw new Error(
+            "Power BI client library is not fully loaded. Verify the powerbi-client script is available."
+        );
+    }
     
     // Configuration for embedding the report
     const config = {
         type: "report",
-        tokenType: powerbiClient.models.TokenType.Embed,
+        tokenType: powerbiModels.TokenType.Embed,
         accessToken: embedConfig.embedToken,
         embedUrl: embedConfig.embedUrl,
         id: embedConfig.reportId,
-        permissions: powerbiClient.models.Permissions.Read,
+        permissions: powerbiModels.Permissions.Read,
         settings: {
             // Panes configuration - hide filter pane since we use our own dropdown
             panes: {
@@ -145,17 +152,17 @@ function embedReport(embedConfig) {
                 }
             },
             // Background setting
-            background: powerbiClient.models.BackgroundType.Transparent,
+            background: powerbiModels.BackgroundType.Transparent,
             // Layout settings for responsive behavior
-            layoutType: powerbiClient.models.LayoutType.Custom,
+            layoutType: powerbiModels.LayoutType.Custom,
             customLayout: {
-                displayOption: powerbiClient.models.DisplayOption.FitToPage
+                displayOption: powerbiModels.DisplayOption.FitToPage
             }
         }
     };
     
     // Embed the report
-    report = powerbiClient.embed(reportContainer, config);
+    report = powerbiService.embed(reportContainer, config);
     
     // Set up event handlers
     setupReportEventHandlers();
@@ -266,7 +273,13 @@ function displayError(title, message, errorData = null) {
  * @returns {Object} Power BI BasicFilter object
  */
 function createBasicFilter(tableName, columnName, values) {
-    const powerbiClient = window.powerbi;
+    const powerbiService = window.powerbi;
+    const powerbiModels = (window["powerbi-client"] && window["powerbi-client"].models) ||
+        (powerbiService && powerbiService.models);
+
+    if (!powerbiModels) {
+        throw new Error("Power BI models are unavailable. Cannot create filters.");
+    }
     
     return {
         $schema: "http://powerbi.com/product/schema#basic",
@@ -276,8 +289,221 @@ function createBasicFilter(tableName, columnName, values) {
         },
         operator: "In",
         values: values,
-        filterType: powerbiClient.models.FilterType.Basic
+        filterType: powerbiModels.FilterType.Basic
     };
+}
+
+/**
+ * Creates an Advanced Filter object using text containment.
+ * @param {string} tableName - Name of the table in the Power BI model
+ * @param {string} columnName - Name of the column to filter
+ * @param {string} value - Value to match with Contains
+ * @returns {Object} Power BI AdvancedFilter object
+ */
+function createContainsFilter(tableName, columnName, value) {
+    const powerbiService = window.powerbi;
+    const powerbiModels = (window["powerbi-client"] && window["powerbi-client"].models) ||
+        (powerbiService && powerbiService.models);
+
+    if (!powerbiModels) {
+        throw new Error("Power BI models are unavailable. Cannot create filters.");
+    }
+
+    return {
+        $schema: "http://powerbi.com/product/schema#advanced",
+        target: {
+            table: tableName,
+            column: columnName
+        },
+        logicalOperator: "And",
+        conditions: [
+            {
+                operator: "Contains",
+                value: value
+            }
+        ],
+        filterType: powerbiModels.FilterType.Advanced
+    };
+}
+
+/**
+ * Returns unique candidate table names for filter target resolution.
+ * @returns {string[]}
+ */
+function getFilterTableCandidates() {
+    const configuredCandidates = Array.isArray(filterConfig.tableCandidates)
+        ? filterConfig.tableCandidates
+        : [];
+
+    const combined = [filterConfig.tableName, ...configuredCandidates]
+        .map(value => (value || "").trim())
+        .filter(Boolean);
+
+    return [...new Set(combined)];
+}
+
+/**
+ * Returns table and matrix visuals from the active page.
+ * @returns {Promise<Array>} List of Power BI visuals
+ */
+async function getTabularVisuals() {
+    const page = await report.getActivePage();
+    const visuals = await page.getVisuals();
+    return visuals.filter(visual => visual.type === "table" || visual.type === "matrix");
+}
+
+/**
+ * Applies or clears filters on tabular visuals and returns update statistics.
+ * @param {Object[]|null} filters - Filters to apply, or null/[] to clear
+ * @returns {Promise<{total: number, succeeded: number}>}
+ */
+async function applyFiltersToTabularVisuals(filters) {
+    const powerbiService = window.powerbi;
+    const powerbiModels = (window["powerbi-client"] && window["powerbi-client"].models) ||
+        (powerbiService && powerbiService.models);
+
+    if (!powerbiModels) {
+        throw new Error("Power BI models are unavailable. Cannot update visual filters.");
+    }
+
+    const tabularVisuals = await getTabularVisuals();
+    const nextFilters = Array.isArray(filters) ? filters : [];
+    const operation = powerbiModels.FiltersOperations.Replace;
+    let succeeded = 0;
+
+    for (const visual of tabularVisuals) {
+        try {
+            if (typeof visual.updateFilters === "function") {
+                await visual.updateFilters(operation, nextFilters);
+            } else if (nextFilters.length) {
+                await visual.setFilters(nextFilters);
+            } else {
+                await visual.removeFilters();
+            }
+            succeeded += 1;
+        } catch (visualError) {
+            console.warn(`Unable to update filters on visual ${visual.name} (${visual.type})`, visualError);
+        }
+    }
+
+    return { total: tabularVisuals.length, succeeded };
+}
+
+/**
+ * Applies or clears filters on the active page.
+ * @param {Object[]|null} filters - Filter array to apply, or null to clear
+ */
+async function applyFiltersToActivePage(filters) {
+    const powerbiService = window.powerbi;
+    const powerbiModels = (window["powerbi-client"] && window["powerbi-client"].models) ||
+        (powerbiService && powerbiService.models);
+
+    if (!powerbiModels) {
+        throw new Error("Power BI models are unavailable. Cannot update page filters.");
+    }
+
+    const page = await report.getActivePage();
+    const nextFilters = Array.isArray(filters) ? filters : [];
+
+    if (typeof page.updateFilters === "function") {
+        await page.updateFilters(powerbiModels.FiltersOperations.Replace, nextFilters);
+    } else if (nextFilters.length) {
+        await page.setFilters(nextFilters);
+    } else {
+        await page.removeFilters();
+    }
+}
+
+/**
+ * Clears filter scopes in report, active page, and tabular visuals.
+ */
+async function clearAllFilterScopes() {
+    const powerbiService = window.powerbi;
+    const powerbiModels = (window["powerbi-client"] && window["powerbi-client"].models) ||
+        (powerbiService && powerbiService.models);
+
+    if (!powerbiModels) {
+        throw new Error("Power BI models are unavailable. Cannot clear filters.");
+    }
+
+    if (typeof report.removeFilters === "function") {
+        await report.removeFilters();
+    } else if (typeof report.updateFilters === "function") {
+        await report.updateFilters(powerbiModels.FiltersOperations.Replace, []);
+    }
+
+    await applyFiltersToActivePage([]);
+    await applyFiltersToTabularVisuals([]);
+}
+
+/**
+ * Applies selected value using candidate table targets until one works.
+ * @param {string} selectedValue
+ * @returns {Promise<Object[]>}
+ */
+async function applyFilterWithFallbackTargets(selectedValue) {
+    const powerbiService = window.powerbi;
+    const powerbiModels = (window["powerbi-client"] && window["powerbi-client"].models) ||
+        (powerbiService && powerbiService.models);
+
+    if (!powerbiModels) {
+        throw new Error("Power BI models are unavailable. Cannot apply filters.");
+    }
+
+    const candidates = getFilterTableCandidates();
+    if (!candidates.length) {
+        throw new Error("No tableName candidate available for filtering.");
+    }
+
+    const failures = [];
+
+    for (const tableName of candidates) {
+        const candidateFilters = [
+            {
+                label: "basic-in",
+                filter: createBasicFilter(tableName, filterConfig.columnName, [selectedValue])
+            },
+            {
+                label: "advanced-contains",
+                filter: createContainsFilter(tableName, filterConfig.columnName, selectedValue)
+            }
+        ];
+
+        for (const attempt of candidateFilters) {
+            try {
+                await clearAllFilterScopes();
+
+                if (typeof report.updateFilters === "function") {
+                    await report.updateFilters(powerbiModels.FiltersOperations.Replace, [attempt.filter]);
+                } else {
+                    await report.setFilters([attempt.filter]);
+                }
+
+                await applyFiltersToActivePage([attempt.filter]);
+                const visualResult = await applyFiltersToTabularVisuals([attempt.filter]);
+
+                if (visualResult.total > 0 && visualResult.succeeded === 0) {
+                    throw new Error("Filter target rejected by all table/matrix visuals");
+                }
+
+                console.log("Filter target applied successfully:", {
+                    tableName,
+                    strategy: attempt.label
+                });
+                return [attempt.filter];
+            } catch (error) {
+                failures.push({
+                    tableName,
+                    strategy: attempt.label,
+                    error: error.message || String(error)
+                });
+            }
+        }
+    }
+
+    throw new Error(
+        `Unable to apply filter to any candidate table. Attempts: ${JSON.stringify(failures)}`
+    );
 }
 
 /**
@@ -291,24 +517,17 @@ async function applyFilter(selectedValue) {
     }
     
     try {
-        if (selectedValue === "All" || selectedValue === "") {
-            // Clear all report-level filters
-            await report.removeFilters();
+        const normalizedValue = (selectedValue || "").trim().toLowerCase();
+        const isAllSelection = normalizedValue === "all" || normalizedValue === "";
+
+        if (isAllSelection) {
+            await clearAllFilterScopes();
             updateStatus("ready", "Filters cleared");
             console.log("Filters removed");
         } else {
-            // Create and apply a basic filter
-            const filter = createBasicFilter(
-                filterConfig.tableName,
-                filterConfig.columnName,
-                [selectedValue]
-            );
-            
-            // Apply filter at the report level
-            // This affects all pages in the report
-            await report.setFilters([filter]);
+            const appliedFilters = await applyFilterWithFallbackTargets(selectedValue);
             updateStatus("ready", `Filtered by: ${selectedValue}`);
-            console.log("Filter applied:", filter);
+            console.log("Filters applied:", appliedFilters);
         }
     } catch (error) {
         console.error("Error applying filter:", error);

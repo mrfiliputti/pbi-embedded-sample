@@ -105,20 +105,23 @@ def get_filter_values():
         }
     """
     try:
-        # Demo filter values - replace with actual data source in production
+        # Product filter values used by the frontend dropdown.
         filter_values = [
             "All",           # Special value to clear filters
-            "Account",
-            "Customer",
-            "Region",
-            "Product"
+            "Laptops",
+            "Monitors",
+            "Keyboards",
+            "Mice",
+            "Headsets",
+            "Webcams"
         ]
         
-        # Filter configuration - MUST be updated with actual Power BI model names
-        # See README.md for instructions on finding these values
+        # Filter configuration for report-level filtering.
+        # Update tableName if your model uses a different table that contains Product.
         filter_config = {
-            "tableName": "<TABLE_NAME>",    # Replace with your actual table name
-            "columnName": "<COLUMN_NAME>",  # Replace with your actual column name
+            "tableName": Config.FILTER_TABLE_NAME,
+            "tableCandidates": Config.FILTER_TABLE_CANDIDATES,
+            "columnName": Config.FILTER_COLUMN_NAME,
         }
         
         return jsonify({
@@ -165,6 +168,59 @@ def health_check():
             "message": str(e),
             "configured": True
         }), 503
+
+
+@app.route("/api/diagnose", methods=["GET"])
+def diagnose():
+    """
+    Comprehensive diagnostic endpoint for validating Power BI prerequisites.
+    
+    Performs the following checks:
+    1. Configuration - Validates all required environment variables
+    2. Authentication - Tests Azure AD authentication with service principal
+    3. Workspace Access - Verifies access to the Power BI workspace
+    4. Capacity - Checks if workspace has dedicated capacity (Premium/Embedded/Fabric)
+    5. Report Access - Validates access to the specific report
+    6. Embed Token - Tests embed token generation capability
+    
+    Response JSON:
+        {
+            "overallStatus": "healthy" | "degraded" | "unhealthy",
+            "summary": "Human-readable summary",
+            "statistics": {
+                "total": 6,
+                "passed": 6,
+                "failed": 0,
+                "warnings": 0
+            },
+            "checks": [
+                {
+                    "name": "check_name",
+                    "displayName": "Human Readable Name",
+                    "status": "pass" | "fail" | "warning",
+                    "message": "Description",
+                    "details": { ... },
+                    "hint": "How to fix (if applicable)"
+                },
+                ...
+            ]
+        }
+    
+    Status Codes:
+        200 - Diagnostics completed (check overallStatus for health)
+        500 - Unexpected error during diagnostics
+    """
+    try:
+        diagnostics = powerbi_service.run_diagnostics()
+        return jsonify(diagnostics), 200
+    
+    except Exception as e:
+        return jsonify({
+            "overallStatus": "error",
+            "summary": "An unexpected error occurred during diagnostics",
+            "error": str(e),
+            "checks": []
+        }), 500
 
 
 # =============================================================================
