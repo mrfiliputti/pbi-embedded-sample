@@ -90,7 +90,6 @@ def get_filter_values():
     
     In a production scenario, these values could come from:
     - A database query
-    - Power BI REST API (querying the dataset)
     - An external service
     
     For this demo, we return hardcoded values representing common filter options.
@@ -119,9 +118,8 @@ def get_filter_values():
         # Filter configuration for report-level filtering.
         # Update tableName if your model uses a different table that contains Product.
         filter_config = {
-            "tableName": Config.FILTER_TABLE_NAME,
-            "tableCandidates": Config.FILTER_TABLE_CANDIDATES,
-            "columnName": Config.FILTER_COLUMN_NAME,
+            "tableName": "Sales",
+            "columnName": "Product",
         }
         
         return jsonify({
