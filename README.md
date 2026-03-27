@@ -72,6 +72,21 @@ For this demo, we'll create a simple sales report:
 
 4. Name the table `Sales` and click **Load**
 
+#### Alternative: Sales Forecast vs Actual Data
+
+For a more advanced forecast vs actual comparison report, use this sample data:
+
+   | Product | Q1 Forecast | Q1 Actual | Q2 Forecast | Q2 Actual | Q3 Forecast | Q3 Actual | Q4 Forecast | Q4 Actual | Total Forecast | Total Actual |
+   |---------|-------------|-----------|-------------|-----------|-------------|-----------|-------------|-----------|----------------|--------------|
+   | Laptops | 50000 | 48500 | 55000 | 57200 | 60000 | 58000 | 70000 | 72500 | 235000 | 236200 |
+   | Monitors | 25000 | 26800 | 28000 | 27500 | 30000 | 31200 | 35000 | 34000 | 118000 | 119500 |
+   | Keyboards | 8000 | 7500 | 9000 | 9200 | 10000 | 10500 | 12000 | 11800 | 39000 | 39000 |
+   | Mice | 5000 | 5200 | 5500 | 5400 | 6000 | 6100 | 7000 | 7200 | 23500 | 23900 |
+   | Headsets | 12000 | 11500 | 14000 | 14800 | 15000 | 15200 | 18000 | 17500 | 59000 | 59000 |
+   | Webcams | 6000 | 6500 | 7000 | 7200 | 8000 | 7800 | 9000 | 9500 | 30000 | 31000 |
+
+Name this table `SalesForecast` and click **Load**
+
 ### Step 3: Build Visualizations
 
 1. In the **Report view** (left sidebar), create visualizations:
@@ -81,6 +96,13 @@ For this demo, we'll create a simple sales report:
    - **Pie Chart**: Drag `Region` to Legend, `Quantity` to Values
    - **Card**: Drag `Sales` to display total sales
    - **Table**: Drag `Category`, `Region`, `Sales`, `Quantity`
+
+   **Suggested visuals for SalesForecast table:**
+   - **Clustered Bar Chart**: Drag `Product` to Axis, `Total Forecast` and `Total Actual` to Values (compare totals)
+   - **Line Chart**: Create measures for quarterly trends (Q1-Q4 Forecast vs Actual)
+   - **Matrix**: Drag `Product` to Rows, all quarterly values to Values
+   - **KPI Card**: Show variance between Total Forecast and Total Actual
+   - **Waterfall Chart**: Visualize quarterly contributions to total sales
 
 2. Arrange visuals on the canvas
 3. Add a title using a **Text box**: "Sales Dashboard"
@@ -97,6 +119,22 @@ For this demo, we'll create a simple sales report:
    ├── Region
    ├── Sales
    └── Quantity
+   ```
+
+   For the SalesForecast table:
+   ```
+   SalesForecast (table name)
+   ├── Product (column - use this for filtering)
+   ├── Q1 Forecast
+   ├── Q1 Actual
+   ├── Q2 Forecast
+   ├── Q2 Actual
+   ├── Q3 Forecast
+   ├── Q3 Actual
+   ├── Q4 Forecast
+   ├── Q4 Actual
+   ├── Total Forecast
+   └── Total Actual
    ```
 3. **Remember these names** - you'll need them to configure filters in the app
 
