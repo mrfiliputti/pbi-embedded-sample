@@ -59,24 +59,7 @@ For this demo, we'll create a simple sales report:
 2. Click **Get data** → **Enter data** (or use **Excel workbook** / **SQL Server** for real data)
 3. Create a sample table with the following data:
 
-   | Category   | Region    | Sales  | Quantity |
-   |------------|-----------|--------|----------|
-   | Account    | North     | 15000  | 100      |
-   | Account    | South     | 12000  | 80       |
-   | Customer   | North     | 22000  | 150      |
-   | Customer   | South     | 18000  | 120      |
-   | Region     | East      | 9000   | 60       |
-   | Region     | West      | 11000  | 75       |
-   | Product    | North     | 25000  | 200      |
-   | Product    | South     | 20000  | 160      |
-
-4. Name the table `Sales` and click **Load**
-
-#### Alternative: Sales Forecast vs Actual Data
-
-For a more advanced forecast vs actual comparison report, use this sample data:
-
-   | Product | Q1 Forecast | Q1 Actual | Q2 Forecast | Q2 Actual | Q3 Forecast | Q3 Actual | Q4 Forecast | Q4 Actual | Total Forecast | Total Actual |
+| Product | Q1 Forecast | Q1 Actual | Q2 Forecast | Q2 Actual | Q3 Forecast | Q3 Actual | Q4 Forecast | Q4 Actual | Total Forecast | Total Actual |
    |---------|-------------|-----------|-------------|-----------|-------------|-----------|-------------|-----------|----------------|--------------|
    | Laptops | 50000 | 48500 | 55000 | 57200 | 60000 | 58000 | 70000 | 72500 | 235000 | 236200 |
    | Monitors | 25000 | 26800 | 28000 | 27500 | 30000 | 31200 | 35000 | 34000 | 118000 | 119500 |
@@ -85,7 +68,8 @@ For a more advanced forecast vs actual comparison report, use this sample data:
    | Headsets | 12000 | 11500 | 14000 | 14800 | 15000 | 15200 | 18000 | 17500 | 59000 | 59000 |
    | Webcams | 6000 | 6500 | 7000 | 7200 | 8000 | 7800 | 9000 | 9500 | 30000 | 31000 |
 
-Name this table `SalesForecast` and click **Load**
+4. Name the table `Sales` and click **Load**
+
 
 ### Step 3: Build Visualizations
 
@@ -115,15 +99,6 @@ Name this table `SalesForecast` and click **Load**
 2. You'll see your table structure:
    ```
    Sales (table name)
-   ├── Category (column - use this for filtering)
-   ├── Region
-   ├── Sales
-   └── Quantity
-   ```
-
-   For the SalesForecast table:
-   ```
-   SalesForecast (table name)
    ├── Product (column - use this for filtering)
    ├── Q1 Forecast
    ├── Q1 Actual
